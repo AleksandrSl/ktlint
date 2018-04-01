@@ -4,11 +4,19 @@ import com.github.shyiko.ktlint.core.Rule
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.com.intellij.lang.ASTNode
 import org.jetbrains.kotlin.com.intellij.psi.impl.source.tree.LeafPsiElement
+import org.jetbrains.kotlin.com.intellij.psi.impl.source.tree.PsiCommentImpl
+import org.jetbrains.kotlin.com.intellij.psi.tree.IElementType
+import org.jetbrains.kotlin.com.intellij.psi.util.PsiTreeUtil
+import org.jetbrains.kotlin.com.intellij.psi.util.PsiUtil
+import org.jetbrains.kotlin.js.translate.utils.PsiUtils
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtCollectionLiteralExpression
+import org.jetbrains.kotlin.psi.psiUtil.findDescendantOfType
+import org.jetbrains.kotlin.psi.psiUtil.forEachDescendantOfType
 import org.jetbrains.kotlin.psi.psiUtil.getNonStrictParentOfType
+import org.jetbrains.kotlin.psi.psiUtil.nextSiblingOfSameType
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes
 
 class StringTemplateRule : Rule("string-template") {
@@ -90,4 +98,12 @@ class StringTemplateRule : Rule("string-template") {
                     ?.getReferencedName() == "Suppress"
             }
     }
+}
+
+
+@Suppress("RemoveCurlyBracesFromTemplate", "Unused")
+class C(val b: Int) {
+
+    lateinit var asd: String
+    override fun toString(): String = "${b}"
 }
