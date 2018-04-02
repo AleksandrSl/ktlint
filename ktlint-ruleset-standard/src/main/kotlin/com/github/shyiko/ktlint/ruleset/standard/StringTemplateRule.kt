@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtCollectionLiteralExpression
+import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.psiUtil.getNonStrictParentOfType
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes
 
@@ -64,7 +65,7 @@ class StringTemplateRule : Rule("string-template") {
     private fun Char.isPartOfIdentifier() = this == '_' || this.isLetterOrDigit()
 
     private fun hasSuppressRemoveCurlyBracesFromTemplate(node: ASTNode): Boolean {
-        return searchForSuppressAnnotation(node)?.let { suppressAnnotation ->
+        return searchForSuppressAnnotations(node).map { suppressAnnotation ->
             println("Suppress annotation: $suppressAnnotation")
             suppressAnnotation.valueArguments.let {
                 if (it.size == 1 && it.first().getArgumentExpression() is
@@ -79,15 +80,19 @@ class StringTemplateRule : Rule("string-template") {
                     }
                 }
             }
-        } ?: false
+        }.any()
     }
 
-    private fun searchForSuppressAnnotation(node: ASTNode) : KtAnnotationEntry? {
-        return node.psi.getNonStrictParentOfType(KtAnnotated::class.java)
-            ?.annotationEntries
-            ?.find {
+    private fun searchForSuppressAnnotations(node: ASTNode) : List<KtAnnotationEntry> {
+        val annotatedParents = mutableListOf<KtAnnotated>()
+        var annotatedParent = node.psi.getNonStrictParentOfType(KtAnnotated::class.java)?.also { annotatedParents.add(it) }
+        while(annotatedParent != null && annotatedParent !is KtFile) {
+            annotatedParent = annotatedParent.parent?.getNonStrictParentOfType(KtAnnotated::class.java)?.also { annotatedParents.add(it) }
+            println(annotatedParent)
+        }
+        return annotatedParents.flatMap { it.annotationEntries }.filter {
                 it.calleeExpression?.constructorReferenceExpression
                     ?.getReferencedName() == "Suppress"
-            }
+        }
     }
 }

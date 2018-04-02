@@ -22,8 +22,17 @@ fun main() {
     println("${s0}")
     @Suppress(names = ["RemoveCurlyBracesFromTemplate", "Unused"])
     println("${s0}")
+    @Suppress(names = arrayOf("RemoveCurlyBracesFromTemplate", "Unused"))
+    println("${s0}")
     @Suppress("RemoveCurlyBracesFromTemplate")
     val t = "${s0}"
+    @Suppress("RemoveCurlyBracesFromTemplate")
+    val expectedPrint = """
+    |$TAB==========================================================
+    |$TAB=                     GRAPH OVERVIEW                     =
+    |$TAB==========================================================
+    |${TAB}Nodes: 2
+    """.trimMargin()
 }
 
 class B(val k: String) {
@@ -40,4 +49,4 @@ class C {
 // 3:28:Redundant 'toString()' call in string template
 // 6:15:Redundant curly braces
 // 7:15:Redundant curly braces
-// 33:79:Redundant 'toString()' call in string template
+// 39:79:Redundant 'toString()' call in string template
