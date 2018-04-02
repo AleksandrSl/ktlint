@@ -5,6 +5,11 @@ import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.com.intellij.lang.ASTNode
 import org.jetbrains.kotlin.com.intellij.psi.impl.source.tree.LeafPsiElement
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtAnnotated
+import org.jetbrains.kotlin.psi.KtAnnotationEntry
+import org.jetbrains.kotlin.psi.KtCollectionLiteralExpression
+import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.psiUtil.getNonStrictParentOfType
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes
 
 class StringTemplateRule : Rule("string-template") {
@@ -46,7 +51,8 @@ class StringTemplateRule : Rule("string-template") {
             node.text.let { it.substring(2, it.length - 1) }.all { it.isPartOfIdentifier() } &&
             (node.treeNext.elementType == KtTokens.CLOSING_QUOTE ||
             (node.psi.nextSibling.node.elementType == KtNodeTypes.LITERAL_STRING_TEMPLATE_ENTRY &&
-            !node.psi.nextSibling.text[0].isPartOfIdentifier()))) {
+            !node.psi.nextSibling.text[0].isPartOfIdentifier())) &&
+            !hasSuppressRemoveCurlyBracesFromTemplate(node)) {
             emit(node.treePrev.startOffset + 2, "Redundant curly braces", true)
             if (autoCorrect) {
                 // fixme: a proper way would be to downcast to SHORT_STRING_TEMPLATE_ENTRY
@@ -57,4 +63,36 @@ class StringTemplateRule : Rule("string-template") {
     }
 
     private fun Char.isPartOfIdentifier() = this == '_' || this.isLetterOrDigit()
+
+    private fun hasSuppressRemoveCurlyBracesFromTemplate(node: ASTNode): Boolean {
+        return searchForSuppressAnnotations(node).map { suppressAnnotation ->
+            println("Suppress annotation: $suppressAnnotation")
+            suppressAnnotation.valueArguments.let {
+                if (it.size == 1 && it.first().getArgumentExpression() is
+                        KtCollectionLiteralExpression
+                ) {
+                    (it.first().getArgumentExpression() as KtCollectionLiteralExpression)
+                        .getInnerExpressions()
+                        .any { it.text == "\"RemoveCurlyBracesFromTemplate\"" }
+                } else {
+                    it.any {
+                        it.getArgumentExpression()?.text == "\"RemoveCurlyBracesFromTemplate\""
+                    }
+                }
+            }
+        }.any()
+    }
+
+    private fun searchForSuppressAnnotations(node: ASTNode) : List<KtAnnotationEntry> {
+        val annotatedParents = mutableListOf<KtAnnotated>()
+        var annotatedParent = node.psi.getNonStrictParentOfType(KtAnnotated::class.java)?.also { annotatedParents.add(it) }
+        while(annotatedParent != null && annotatedParent !is KtFile) {
+            annotatedParent = annotatedParent.parent?.getNonStrictParentOfType(KtAnnotated::class.java)?.also { annotatedParents.add(it) }
+            println(annotatedParent)
+        }
+        return annotatedParents.flatMap { it.annotationEntries }.filter {
+                it.calleeExpression?.constructorReferenceExpression
+                    ?.getReferencedName() == "Suppress"
+        }
+    }
 }
