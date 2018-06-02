@@ -16,13 +16,13 @@ class NoTrailingSpacesRule : Rule("no-trailing-spaces") {
         if (node is PsiWhiteSpace) {
             val lines = node.getText().split("\n")
             if (lines.size > 1) {
-                checkForTrailingSpaces(lines.head(), node.startOffset, emit)
-                if (autoCorrect) {
+                val violated = checkForTrailingSpaces(lines.head(), node.startOffset, emit)
+                if (violated && autoCorrect) {
                     (node as LeafPsiElement).rawReplaceWithText("\n".repeat(lines.size - 1) + lines.last())
                 }
             } else if (PsiTreeUtil.nextLeaf(node) == null /* eof */) {
-                checkForTrailingSpaces(lines, node.startOffset, emit)
-                if (autoCorrect) {
+                val violated = checkForTrailingSpaces(lines, node.startOffset, emit)
+                if (violated && autoCorrect) {
                     (node as LeafPsiElement).rawReplaceWithText("\n".repeat(lines.size - 1))
                 }
             }
@@ -33,13 +33,16 @@ class NoTrailingSpacesRule : Rule("no-trailing-spaces") {
         lines: List<String>,
         offset: Int,
         emit: (offset: Int, errorMessage: String, canBeAutoCorrected: Boolean) -> Unit
-    ) {
+    ): Boolean {
+        var violated = false
         var violationOffset = offset
-        return lines.forEach { line ->
+        lines.forEach { line ->
             if (!line.isEmpty()) {
                 emit(violationOffset, "Trailing space(s)", true)
+                violated = true
             }
             violationOffset += line.length + 1
         }
+        return violated
     }
 }

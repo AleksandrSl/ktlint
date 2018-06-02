@@ -40,11 +40,13 @@ It's also [easy to create your own](#creating-a-reporter).
 - No `Unit` returns (`fun fn {}` instead of `fun fn: Unit {}`);
 - No empty (`{}`) class bodies;
 - No spaces around range (`..`) operator;
+- No newline before (binary) `+` & `-`, `*`, `/`, `%`, `&&`, `||`; 
 - When wrapping chained calls `.`, `?.` and `?:` should be placed on the next line;
-- When a line is broken at an assignment (`=`) operator the break comes after the symbol; 
+- When a line is broken at an assignment (`=`) operator the break comes after the symbol;
+- When class/function signature doesn't fit on a single line, each parameter must be on a separate line;
 - Consistent string templates (`$v` instead of `${v}`, `${p.v}` instead of `${p.v.toString()}`);
 - Consistent order of modifiers;
-- Consistent spacing after keywords, commas; around colons, curly braces, infix operators, etc;
+- Consistent spacing after keywords, commas; around colons, curly braces, infix operators, comments, etc;
 - Newline at the end of each file (not enabled by default, but recommended)  
 (set `insert_final_newline=true` in .editorconfig to enable (see [EditorConfig](#editorconfig) section for more)).
 
@@ -57,7 +59,7 @@ ktlint recognizes the following [.editorconfig](http://editorconfig.org/) proper
 # possible values: number (e.g. 2), "unset" (makes ktlint ignore indentation completely)  
 indent_size=4
 # possible values: number (e.g. 2), "unset"
-continuation_indent_size=unset
+continuation_indent_size=4
 # true (recommended) / false
 insert_final_newline=unset
 # possible values: number (e.g. 120) (package name, imports & comments are ignored), "off"
@@ -70,7 +72,7 @@ max_line_length=off
 > Skip all the way to the "Integration" section if you don't plan to use `ktlint`'s command line interface.
 
 ```sh
-curl -sSLO https://github.com/shyiko/ktlint/releases/download/0.15.0/ktlint &&
+curl -sSLO https://github.com/shyiko/ktlint/releases/download/0.23.1/ktlint &&
   chmod a+x ktlint &&
   sudo mv ktlint /usr/local/bin/
 ```
@@ -164,7 +166,7 @@ $ ktlint --install-git-pre-commit-hook
         <dependency>
             <groupId>com.github.shyiko</groupId>
             <artifactId>ktlint</artifactId>
-            <version>0.15.0</version>
+            <version>0.23.1</version>
         </dependency>
         <!-- additional 3rd party ruleset(s) can be specified here -->
     </dependencies>
@@ -175,6 +177,8 @@ $ ktlint --install-git-pre-commit-hook
 To check code style - `mvn antrun:run@ktlint` (it's also bound to `mvn verify`).  
 To run formatter - `mvn antrun:run@ktlint-format`.   
 
+**Another option** is to use a dedicated Maven plugin - [gantsign/ktlint-maven-plugin](https://github.com/gantsign/ktlint-maven-plugin). 
+
 #### ... with [Gradle](https://gradle.org/)
 
 #### (without a plugin)
@@ -182,7 +186,8 @@ To run formatter - `mvn antrun:run@ktlint-format`.
 > build.gradle
 
 ```groovy
-apply plugin: "java"
+// kotlin-gradle-plugin must be applied for configuration below to work
+// (see https://kotlinlang.org/docs/reference/using-gradle.html)
 
 repositories {
     jcenter()
@@ -193,7 +198,7 @@ configurations {
 }
 
 dependencies {
-    ktlint "com.github.shyiko:ktlint:0.15.0"
+    ktlint "com.github.shyiko:ktlint:0.23.1"
     // additional 3rd party ruleset(s) can be specified here
     // just add them to the classpath (e.g. ktlint 'groupId:artifactId:version') and 
     // ktlint will pick them up
@@ -218,10 +223,10 @@ task ktlintFormat(type: JavaExec, group: "formatting") {
 }
 ```
 
-> Note: For an Android project this config would typically go into your app/build.gradle.
-
 To check code style - `gradle ktlint` (it's also bound to `gradle check`).  
 To run formatter - `gradle ktlintFormat`.
+
+See [Making your Gradle tasks incremental](https://proandroiddev.com/making-your-gradle-tasks-incremental-7f26e4ef09c3) by [Niklas Baudy](https://github.com/vanniktech) on how to make tasks above incremental. 
 
 #### (with a plugin)
 
@@ -244,28 +249,29 @@ You might also want to take a look at [diffplug/spotless](https://github.com/dif
 > (inside project's root directory)  
 
 ```sh
-ktlint --apply-to-idea
+ktlint --apply-to-idea-project
 # or if you want to be compliant with Android Kotlin Style Guide
-ktlint --apply-to-idea --android 
+ktlint --apply-to-idea-project --android 
 ```
 
 ##### Option #2
 
-Go to `File -> Settings... -> Editor`
-- `General -> Auto Import`
+Go to <kbd>File</kbd> -> <kbd>Settings...</kbd> -> <kbd>Editor</kbd>
+- <kbd>General</kbd> -> <kbd>Auto Import</kbd>
   - check `Optimize imports on the fly (for current project)`.
-- `Code Style -> Kotlin`
-  - open `Imports` tab
-    - select `Use single name import` (all);
+- <kbd>Code Style</kbd> -> <kbd>Kotlin</kbd>
+  - <kbd>Set from...</kbd> -> <kbd>Predefined style</kbd> -> <kbd>Kotlin style guide</kbd> (Kotlin plugin 1.2.20+).
+  - open <kbd>Imports</kbd> tab
+    - select `Use single name import` (all of them);
     - remove `import java.util.*` from `Packages to Use Import with '*'`.
-  - open `Blank Lines` tab
-    - change `Keep Maximum Blank Lines` -> `In declarations` & `In code` to 1 and `Before '}'` to 0.
-  - (optional but recommended) open `Wrapping and Braces` tab
-    - uncheck `Method declaration parameters -> Align when multiline`. 
-  - (optional but recommended) open `Tabs and Indents` tab
-    - change `Continuation indent` to 4   
-- `Inspections` 
-  - change `Severity` level of `Unused import directive`, `Redundant semicolon` and (optional but recommended) `Unused symbol` to `ERROR`.
+  - open <kbd>Blank Lines</kbd> tab
+    - change `Keep Maximum Blank Lines` / `In declarations` & `In code` to 1 and `Before '}'` to 0.
+  - (optional but recommended) open <kbd>Wrapping and Braces</kbd> tab
+    - uncheck `Method declaration parameters` / `Align when multiline`.     
+  - (optional but recommended) open <kbd>Tabs and Indents</kbd> tab
+    - change `Continuation indent` to the same value as `Indent` (4 by default).   
+- <kbd>Inspections</kbd> 
+  - change `Severity` level of `Unused import directive` and `Redundant semicolon` to `ERROR`.
 
 #### ... with [GNU Emacs](https://www.gnu.org/software/emacs/)
 
@@ -300,10 +306,10 @@ A complete sample project (with tests and build files) is included in this repo 
 While writing/debugging [Rule](ktlint-core/src/main/kotlin/com/github/shyiko/ktlint/core/Rule.kt)s it's often helpful to have an AST
 printed out to see the structure rules have to work with. ktlint >= 0.15.0 has `--print-ast` flag specifically for this purpose
 (usage: `ktlint --color --print-ast <file>`).  
-An example of the output it shown below. 
+An example of the output is shown below. 
 
 ```sh
-$ printf "fun main {}" | ktlint --color --print-ast --stdin
+$ printf "fun main() {}" | ktlint --color --print-ast --stdin
 
 1: ~.psi.KtFile (~.psi.stubs.elements.KtFileElementType.kotlin.FILE)
 1:   ~.psi.KtPackageDirective (~.psi.stubs.elements.KtPlaceHolderStubElementType.PACKAGE_DIRECTIVE) ""
@@ -337,9 +343,12 @@ In short, all you need to do is to implement a
 a custom [ReporterProvider](ktlint-core/src/main/kotlin/com/github/shyiko/ktlint/core/ReporterProvider.kt) using
 `META-INF/services/com.github.shyiko.ktlint.core.ReporterProvider`. Pack all of that into a JAR and you're done.
 
-To load a custom (3rd party) reporter use `ktlint --reporter=groupId:artifactId:version` / `ktlint --reporter=/path/to/custom-ktlint-reporter.jar`
+To load a custom (3rd party) reporter use `ktlint --reporter=name,artifact=groupId:artifactId:version` / `ktlint --reporter=name,artifact=/path/to/custom-ktlint-reporter.jar`
 (see `ktlint --help` for more).
- 
+
+Third-party:
+* [mcassiano/ktlint-html-reporter](https://github.com/mcassiano/ktlint-html-reporter)
+
 ## Badge
 
 [![ktlint](https://img.shields.io/badge/code%20style-%E2%9D%A4-FF4081.svg)](https://ktlint.github.io/)

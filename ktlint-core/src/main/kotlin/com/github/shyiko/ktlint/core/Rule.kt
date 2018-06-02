@@ -45,5 +45,6 @@ abstract class Rule(val id: String) {
          * Note that [RestrictToRootLast] implements [RestrictToRoot].
          */
         interface RestrictToRootLast : RestrictToRoot
+        interface Last
     }
 }

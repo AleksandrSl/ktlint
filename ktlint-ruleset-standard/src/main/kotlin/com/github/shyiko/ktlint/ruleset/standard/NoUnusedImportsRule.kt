@@ -12,7 +12,7 @@ import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes
 
 class NoUnusedImportsRule : Rule("no-unused-imports") {
 
-    private val destructureOperator = Regex("(?:component)[\\d]+\\b")
+    private val componentNRegex = Regex("^component\\d+$")
 
     private val operatorSet = setOf(
         // unary
@@ -68,13 +68,13 @@ class NoUnusedImportsRule : Rule("no-unused-imports") {
             val name = importDirective.importPath?.importedName?.asString()
             val importPath = importDirective.importPath?.pathStr!!
             if (importDirective.aliasName == null &&
-                importPath.startsWith(packageName) &&
+                (packageName.isEmpty() || importPath.startsWith("$packageName.")) &&
                 importPath.substring(packageName.length + 1).indexOf('.') == -1) {
                 emit(importDirective.startOffset, "Unnecessary import", true)
                 if (autoCorrect) {
                     importDirective.delete()
                 }
-            } else if (name != null && !ref.contains(name) && !operatorSet.contains(name) && !destructureOperator.matches(name)) {
+            } else if (name != null && !ref.contains(name) && !operatorSet.contains(name) && !name.isComponentN()) {
                 emit(importDirective.startOffset, "Unused import", true)
                 if (autoCorrect) {
                     importDirective.delete()
@@ -83,8 +83,5 @@ class NoUnusedImportsRule : Rule("no-unused-imports") {
         }
     }
 
-    private fun ASTNode.visit(cb: (node: ASTNode) -> Unit) {
-        cb(this)
-        this.getChildren(null).forEach { it.visit(cb) }
-    }
+    private fun String.isComponentN() = componentNRegex.matches(this)
 }

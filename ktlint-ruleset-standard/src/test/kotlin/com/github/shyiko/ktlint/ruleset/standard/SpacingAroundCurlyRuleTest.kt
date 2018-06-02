@@ -11,6 +11,7 @@ class SpacingAroundCurlyRuleTest {
     @Test
     fun testLint() {
         assertThat(SpacingAroundCurlyRule().lint("fun emit() { }")).isEmpty()
+        assertThat(SpacingAroundCurlyRule().lint("fun emit() { val a = a@{ } }")).isEmpty()
         assertThat(SpacingAroundCurlyRule().lint("fun emit() {}")).isEmpty()
         assertThat(SpacingAroundCurlyRule().lint("fun main() { val v = if (true){return 0} }"))
             .isEqualTo(listOf(
@@ -88,6 +89,7 @@ class SpacingAroundCurlyRuleTest {
                 val f =
                     { true }
             }
+            class A { private val shouldEjectBlock = block@ { (pathProgress ?: return@block false) >= 0.85 } }
             """.trimIndent()
         )).isEqualTo(
             """
@@ -129,6 +131,7 @@ class SpacingAroundCurlyRuleTest {
                 val f =
                     { true }
             }
+            class A { private val shouldEjectBlock = block@{ (pathProgress ?: return@block false) >= 0.85 } }
             """.trimIndent()
         )
     }
