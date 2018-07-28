@@ -25,7 +25,11 @@ import org.jetbrains.kotlin.com.intellij.psi.PsiWhiteSpace
 import org.jetbrains.kotlin.com.intellij.psi.impl.source.tree.TreeCopyHandler
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.idea.KotlinLanguage
+import org.jetbrains.kotlin.psi.KtAnnotated
+import org.jetbrains.kotlin.psi.KtAnnotationEntry
+import org.jetbrains.kotlin.psi.KtCollectionLiteralExpression
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.psiUtil.endOffset
 import org.jetbrains.kotlin.psi.psiUtil.prevLeaf
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
 import sun.reflect.ReflectionFactory
@@ -434,6 +438,24 @@ object KtLint {
                             }
                         }
                     }
+                    val psi = node.psi
+                    when (psi) {
+                        is KtAnnotated -> {
+                            psi.annotationEntries
+                                .filter {
+                                    it.calleeExpression?.constructorReferenceExpression
+                                        ?.getReferencedName() == "Suppress"
+                                }.flatMap { suppressAnnotation ->
+                                    suppressAnnotation.extractArguments()
+                                }.map {
+                                    annotationRuleMap[it]
+                                }.distinct().let {
+                                    if (it.isNotEmpty()) {
+                                        result.add(SuppressionHint(IntRange(psi.startOffset, psi.endOffset), setOf()))
+                                    }
+                                }
+                        }
+                    }
                 }
                 result.addAll(open.map {
                     SuppressionHint(IntRange(it.range.first, rootNode.textLength), it.disabledRules)
@@ -456,6 +478,23 @@ object KtLint {
                 comment.replace(Regex("\\s"), " ").replace(" {2,}", " ").split(" ")
 
             private fun <T> List<T>.tail() = this.subList(1, this.size)
+
+            private val annotationRuleMap = mapOf(
+                "RemoveCurlyBracesFromTemplate" to "string-template"
+            )
+
+            private fun KtAnnotationEntry.extractArguments() : List<String> {
+                return this.valueArguments.let {
+                    if (it.size == 1 && it.first().getArgumentExpression() is
+                            KtCollectionLiteralExpression
+                    ) {
+                        (it.first().getArgumentExpression() as KtCollectionLiteralExpression)
+                            .getInnerExpressions().map { it.text }
+                    } else {
+                        it.map { it.getArgumentExpression()?.text }
+                    }.filterNotNull()
+                }
+            }
         }
     }
 

@@ -1,0 +1,71 @@
+name: ktlint
+version: git
+summary: An anti-bikeshedding Kotlin linter with built-in formatter
+description: |
+   Kotlin linter in spirit of feross/standard (JavaScript) and gofmt (Go).
+
+confinement: devmode
+
+apps:
+  ktlint:
+    command: ktlint
+    plugs: [home, network]
+    environment:
+      PATH: $PATH:$SNAP/usr/lib/jvm/java-8-openjdk/bin
+
+parts:
+  ktlint:
+    source: .
+    plugin: nil
+    build-packages: [openjdk-8-jdk]
+    stage-packages: [openjdk-8-jre]
+    prepare: |
+      bash -c '
+      http_proxy_regex="^https?://(([^:]{1,128}):([^@]{1,256})@)?([^:/]{1,255})(:([0-9]{1,5}))?/?"
+      printf " -Djdk.http.auth.tunneling.disabledSchemes=" >> .mvn/jvm.config
+      printf "<settings>\n<proxies>" > .mvn/global_settings.xml
+      if [[ "$http_proxy" =~ $http_proxy_regex ]]; then
+        printf "\
+          -Dhttp.proxyUser=${BASH_REMATCH[2]} \
+          -Dhttp.proxyPassword=${BASH_REMATCH[3]} \
+          -Dhttp.proxyHost=${BASH_REMATCH[4]} \
+          -Dhttp.proxyPort=${BASH_REMATCH[6]:-80}" >> .mvn/jvm.config
+        printf "
+          <proxy>
+            <id>http_proxy</id>
+            <active>true</active>
+            <protocol>http</protocol>
+            <username>${BASH_REMATCH[2]}</username>
+            <password>${BASH_REMATCH[3]}</password>
+            <host>${BASH_REMATCH[4]}</host>
+            <port>${BASH_REMATCH[6]:-80}</port>
+            <nonProxyHosts>localhost|127.*|[::1]</nonProxyHosts>
+          </proxy>" >> .mvn/global_settings.xml
+      fi
+      if [[ "$https_proxy" =~ $http_proxy_regex ]]; then
+        printf "\
+          -Dhttps.proxyUser=${BASH_REMATCH[2]} \
+          -Dhttps.proxyPassword=${BASH_REMATCH[3]} \
+          -Dhttps.proxyHost=${BASH_REMATCH[4]} \
+          -Dhttps.proxyPort=${BASH_REMATCH[6]:-443}" >> .mvn/jvm.config
+        printf "
+          <proxy>
+            <id>https_proxy</id>
+            <active>true</active>
+            <protocol>https</protocol>
+            <username>${BASH_REMATCH[2]}</username>
+            <password>${BASH_REMATCH[3]}</password>
+            <host>${BASH_REMATCH[4]}</host>
+            <port>${BASH_REMATCH[6]:-443}</port>
+            <nonProxyHosts>localhost|127.*|[::1]</nonProxyHosts>
+          </proxy>" >> .mvn/global_settings.xml
+      fi
+      printf "\n</proxies>\n</settings>" >> .mvn/global_settings.xml
+      printf " -gs .mvn/global_settings.xml" >> .mvn/maven.config
+      '
+    build:
+      ./mvnw -Pcapsule clean package -Dmaven.test.skip=true
+    install:
+      mv ktlint/target/ktlint $SNAPCRAFT_PART_INSTALL
+    organize:
+      usr/lib/jvm/java-8-openjdk-*: usr/lib/jvm/java-8-openjdk

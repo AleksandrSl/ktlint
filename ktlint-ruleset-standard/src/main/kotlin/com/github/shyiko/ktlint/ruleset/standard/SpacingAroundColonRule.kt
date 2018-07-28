@@ -21,7 +21,7 @@ class SpacingAroundColonRule : Rule("colon-spacing") {
     ) {
         if (node is LeafPsiElement && node.textMatches(":") && !node.isPartOfString()) {
             if (node.isPartOf(KtAnnotation::class) || node.isPartOf(KtAnnotationEntry::class)) {
-                // todo: enfore "no spacing"
+                // todo: enforce "no spacing"
                 return
             }
             if (node.prevSibling is PsiWhiteSpace &&
