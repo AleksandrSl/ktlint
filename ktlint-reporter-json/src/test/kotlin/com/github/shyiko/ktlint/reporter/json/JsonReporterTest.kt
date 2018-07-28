@@ -1,7 +1,7 @@
 package com.github.shyiko.ktlint.reporter.json
 
 import com.github.shyiko.ktlint.core.LintError
-import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
 import org.testng.annotations.Test
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
@@ -25,7 +25,7 @@ class JsonReporterTest {
         reporter.onLintError("/all-corrected.kt", LintError(1, 1, "rule-1",
             "I thought we had more time"), true)
         reporter.afterAll()
-        Assertions.assertThat(String(out.toByteArray())).isEqualTo(
+        assertThat(String(out.toByteArray())).isEqualTo(
             """
 [
 	{
@@ -53,6 +53,31 @@ class JsonReporterTest {
 				"column": 20,
 				"message": "A single thin straight line",
 				"rule": "rule-2"
+			}
+		]
+	}
+]
+""".trimStart().replace("\n", System.lineSeparator())
+        )
+    }
+
+    @Test
+    fun testProperEscaping() {
+        val out = ByteArrayOutputStream()
+        val reporter = JsonReporter(PrintStream(out, true))
+        reporter.onLintError("src\\main\\all\\corrected.kt", LintError(4, 7, "rule-7", "\\n\n\r\t\""), false)
+        reporter.afterAll()
+        assertThat(String(out.toByteArray())).isEqualTo(
+            """
+[
+	{
+		"file": "src\\main\\all\\corrected.kt",
+		"errors": [
+			{
+				"line": 4,
+				"column": 7,
+				"message": "\\n\n\r\t\"",
+				"rule": "rule-7"
 			}
 		]
 	}

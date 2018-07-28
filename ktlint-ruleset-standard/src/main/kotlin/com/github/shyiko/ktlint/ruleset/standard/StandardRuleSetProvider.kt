@@ -10,6 +10,10 @@ class StandardRuleSetProvider : RuleSetProvider {
         CommentSpacingRule(),
         FilenameRule(),
         FinalNewlineRule(),
+        PackageNameRule(),
+        // disabled until auto-correct is working properly
+        // (e.g. try formatting "if (true)\n    return { _ ->\n        _\n}")
+        // MultiLineIfElseRule(),
         // disabled until it's clear how to reconcile difference in Intellij & Android Studio import layout
         // ImportOrderingRule(),
         IndentationRule(),
@@ -34,6 +38,7 @@ class StandardRuleSetProvider : RuleSetProvider {
         SpacingAroundCurlyRule(),
         SpacingAroundKeywordRule(),
         SpacingAroundOperatorsRule(),
+        SpacingAroundParensRule(),
         SpacingAroundRangeOperatorRule(),
         StringTemplateRule()
     )

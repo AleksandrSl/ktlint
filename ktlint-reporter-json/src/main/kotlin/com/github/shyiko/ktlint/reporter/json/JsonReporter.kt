@@ -12,7 +12,7 @@ class JsonReporter(val out: PrintStream) : Reporter {
 
     override fun onLintError(file: String, err: LintError, corrected: Boolean) {
         if (!corrected) {
-            acc.getOrPut(file) { ArrayList<LintError>() }.add(err)
+            acc.getOrPut(file) { ArrayList() }.add(err)
         }
     }
 
@@ -40,5 +40,11 @@ class JsonReporter(val out: PrintStream) : Reporter {
         out.println("]")
     }
 
-    private fun String.escapeJsonValue() = this.replace("\"", "\\\"")
+    private fun String.escapeJsonValue() = this
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\b", "\\b")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
 }

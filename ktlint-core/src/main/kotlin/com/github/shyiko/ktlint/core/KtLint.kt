@@ -44,7 +44,7 @@ object KtLint {
     val FILE_PATH_USER_DATA_KEY = Key<String>("FILE_PATH")
 
     private val psiFileFactory: PsiFileFactory
-    private val nullSuppression = { _: Int, _: String -> false }
+    private val nullSuppression = { _: Int, _: String, _: Boolean -> false }
 
     init {
         // do not print anything to the stderr when lexer is unable to match input
@@ -155,11 +155,11 @@ object KtLint {
         visitor(rootNode, ruleSets).invoke { node, rule, fqRuleId ->
             // fixme: enforcing suppression based on node.startOffset is wrong
             // (not just because not all nodes are leaves but because rules are free to emit (and fix!) errors at any position)
-            if (!isSuppressed(node.startOffset, fqRuleId) || node === rootNode) {
+            if (!isSuppressed(node.startOffset, fqRuleId, node === rootNode)) {
                 try {
-                    rule.visit(node, false) { offset, errorMessage, _ ->
+                    rule.visit(node, false) { offset, errorMessage, canBeAutoCorrected ->
                         val (line, col) = positionByOffset(offset)
-                        cb(LintError(line, col, fqRuleId, errorMessage))
+                        cb(LintError(line, col, fqRuleId, errorMessage, canBeAutoCorrected))
                     }
                 } catch (e: Exception) {
                     val (line, col) = positionByOffset(node.startOffset)
@@ -256,9 +256,15 @@ object KtLint {
 
     private fun calculateSuppressedRegions(rootNode: ASTNode) =
         SuppressionHint.collect(rootNode).let { listOfHints ->
-            if (listOfHints.isEmpty()) nullSuppression else { offset, ruleId ->
-                listOfHints.any { (range, disabledRules) ->
-                    (disabledRules.isEmpty() || disabledRules.contains(ruleId)) && range.contains(offset) }
+            if (listOfHints.isEmpty()) nullSuppression else { offset, ruleId, root ->
+                if (root) {
+                    val h = listOfHints[0]
+                    h.range.endInclusive == 0 && (h.disabledRules.isEmpty() || h.disabledRules.contains(ruleId))
+                } else {
+                    listOfHints.any { (range, disabledRules) ->
+                        (disabledRules.isEmpty() || disabledRules.contains(ruleId)) && range.contains(offset)
+                    }
+                }
             }
         }
 
@@ -332,7 +338,7 @@ object KtLint {
             .invoke { node, rule, fqRuleId ->
                 // fixme: enforcing suppression based on node.startOffset is wrong
                 // (not just because not all nodes are leaves but because rules are free to emit (and fix!) errors at any position)
-                if (!isSuppressed(node.startOffset, fqRuleId) || node === rootNode) {
+                if (!isSuppressed(node.startOffset, fqRuleId, node === rootNode)) {
                     try {
                         rule.visit(node, true) { _, _, canBeAutoCorrected ->
                             tripped = true
@@ -354,11 +360,11 @@ object KtLint {
             visitor(rootNode, ruleSets).invoke { node, rule, fqRuleId ->
                 // fixme: enforcing suppression based on node.startOffset is wrong
                 // (not just because not all nodes are leaves but because rules are free to emit (and fix!) errors at any position)
-                if (!isSuppressed(node.startOffset, fqRuleId) || node === rootNode) {
+                if (!isSuppressed(node.startOffset, fqRuleId, node === rootNode)) {
                     try {
-                        rule.visit(node, false) { offset, errorMessage, _ ->
+                        rule.visit(node, false) { offset, errorMessage, canBeAutoCorrected ->
                             val (line, col) = positionByOffset(offset)
-                            cb(LintError(line, col, fqRuleId, errorMessage), false)
+                            cb(LintError(line, col, fqRuleId, errorMessage, canBeAutoCorrected), false)
                         }
                     } catch (e: Exception) {
                         val (line, col) = positionByOffset(node.startOffset)
@@ -367,7 +373,7 @@ object KtLint {
                 }
             }
         }
-        return if (mutated) rootNode.text.replace("\n", determineLineSeparator(text)) else text
+        return if (mutated) rootNode.text.replace("\n", determineLineSeparator(text, userData)) else text
     }
 
     private fun calculateLineBreakOffset(fileContent: String): (offset: Int) -> Int {
@@ -378,12 +384,21 @@ object KtLint {
             i = fileContent.indexOf("\r\n", i + 1)
         } while (i != -1)
         arr.add(fileContent.length)
-        return if (arr.size != 2)
-            SegmentTree(arr.toTypedArray()).let { return { offset -> it.indexOf(offset) } } else { _ -> 0 }
+        return if (arr.size != 2) {
+            SegmentTree(arr.toTypedArray()).let { return { offset -> it.indexOf(offset) } }
+        } else {
+            _ -> 0
+        }
     }
 
-    private fun determineLineSeparator(fileContent: String) =
-        if (fileContent.lastIndexOf('\r') != -1) "\r\n" else "\n"
+    private fun determineLineSeparator(fileContent: String, userData: Map<String, String>): String {
+        val eol = userData["end_of_line"]?.trim()?.toLowerCase()
+        return when {
+            eol == "native" -> System.lineSeparator()
+            eol == "crlf" || eol != "lf" && fileContent.lastIndexOf('\r') != -1 -> "\r\n"
+            else -> "\n"
+        }
+    }
 
     /**
      * @param range zero-based range of lines where lint errors should be suppressed
